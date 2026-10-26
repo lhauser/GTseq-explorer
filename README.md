@@ -1,165 +1,117 @@
-Written by Claude. I haven't checked the code, so use at your own peril.
+Written by Claude. I haven't checked the code, so use at your own peril, and use for teaching only.
 
-<h1> Claude's explanation of what it does: How the Genotype-Calling App Simulates GTseq Data </h1>
+<h1 id="gtseq-read-explorer">GTseq Read Explorer</h1>
+<p>An interactive web page that follows real GTseq reads from five
+Pacific herring, from the raw FASTQ files to genotype calls. It was
+built for an introductory genetics lab, so students can see what
+sequencing data look like before working with genotypes.</p>
 
-<h2 id="overview">Overview</h2>
-<p>The app really simulates every fish's genotypes and read counts. The
-one big shortcut is that reads are never simulated as DNA sequences: for
-each fish at each locus, the app draws how many reads carry allele A and
-how many carry allele B. Everything after that (calling, filtering,
-statistics) runs on those counts, just as the GTseq genotyper does on
-counts from real reads.</p>
-<p>With the defaults, that is 40 fish × 80 loci × 2 replicates = 6,400
-genotypes, standing in for about 380,000 reads.</p>
-<h2 id="simulating-the-fish">Simulating the fish</h2>
-<h3 id="1-allele-frequencies-at-each-locus">1. Allele frequencies at
-each locus</h3>
+<h2 id="the-data">The data</h2>
 <ul>
-<li><strong>Ancestral frequency.</strong> Each locus first gets a
-starting allele frequency. By default this comes from a U-shaped beta
-distribution, so many loci have a rare allele, kept between 0.02 and
-0.98. The alternative setting is common alleles only, between 0.1 and
-0.9.</li>
-<li><strong>Population frequencies.</strong> Each population's frequency
-is drawn independently around the ancestral one from a beta distribution
-whose spread is set by the true FST. This is the Balding–Nichols model,
-a standard way to simulate drift between populations from a common
-ancestor.</li>
-<li><strong>Monomorphic loci.</strong> A set share of loci (15% by
-default) is fixed for one allele in both populations, so any
-minor-allele reads there can only come from errors.</li>
+<li><strong>Fish:</strong> five Pacific herring (23OB-01, 23OB-02,
+23OB-03, 23OB-04 and 23OB-23).</li>
+<li><strong>Panel:</strong> the herring GTseq163 panel, with 163 SNP
+loci.</li>
+<li><strong>Sequencing:</strong> Illumina NextSeq, 76-base paired-end
+reads, already sorted into one file per fish by the sequencing provider.
+Fish 23OB-23 has read 1 only.</li>
+<li><strong>Loci are named</strong> by their position in the herring
+genome (chromosome:start-end).</li>
 </ul>
-<h3 id="2-true-genotypes">2. True genotypes</h3>
-<p>Each fish's genotype at each locus is drawn as the number of A
-alleles (0, 1 or 2) from a binomial with its population's allele
-frequency. Each population is therefore in Hardy–Weinberg equilibrium,
-and loci are independent: there is no linkage. That is simpler than the
-herring panel, where loci cluster on a few chromosomes.</p>
-<h2 id="simulating-the-reads">Simulating the reads</h2>
-<h3 id="3-how-many-reads-each-fish-gets-at-each-locus">3. How many reads
-each fish gets at each locus</h3>
-<ul>
-<li><strong>Fish effect.</strong> Each fish gets a multiplier for DNA
-quality, drawn from a log-normal distribution with mean 1. The "fold
-spread" slider sets its standard deviation on the log scale (log 3 by
-default), so some fish get far fewer reads.</li>
-<li><strong>Locus effect.</strong> Each locus gets an amplification
-multiplier the same way (fold spread 2.75 by default).</li>
-<li><strong>Expected reads</strong> = average reads × fish multiplier ×
-locus multiplier.</li>
-<li><strong>Actual reads</strong> are drawn separately for each
-replicate from a negative binomial around that expected value. That adds
-the extra randomness of PCR on top of sampling, so read counts vary more
-than pure chance would give.</li>
-</ul>
-<p>The two replicates of a fish share its DNA quality and its true
-genotype, but get separate draws for read depth, allele balance and
-errors, like two independent libraries made from the same extract.</p>
-<h3 id="4-allele-balance-in-heterozygotes">4. Allele balance in
-heterozygotes</h3>
-<p>In a homozygote, every template molecule carries the same allele. In
-a heterozygote, the share of template carrying A is drawn from a beta
-distribution centered on 0.5. Its spread is the allele-balance noise
-setting (SD 0.08 by default), standing in for unequal PCR amplification
-of the two alleles.</p>
-<h3 id="5-sequencing-error-and-the-read-counts">5. Sequencing error and
-the read counts</h3>
-<p>Each read shows the wrong allele with probability <em>e</em> (the
-error slider). The chance that a read shows A is therefore (A share × (1
-− <em>e</em>)) + (B share × <em>e</em>). The number of A reads is drawn
-from a binomial with that probability and the read depth; the rest are B
-reads.</p>
-<p>This binomial draw is the main shortcut, and it costs nothing:
-drawing each read separately with the same probability and adding them
-up gives exactly the same distribution.</p>
-<h2 id="from-reads-to-results">From reads to results</h2>
-<h3 id="6-calling-genotypes">6. Calling genotypes</h3>
-<p>The A and B counts go through the same rules as the GTseq
-genotyper:</p>
+<h2 id="what-the-page-shows">What the page shows</h2>
+<h3 id="step-1-where-the-reads-go">Step 1: Where the reads go</h3>
+<p>Each bar shows what happened to all reads from one fish:</p>
 <table>
 <thead>
 <tr class="header">
-<th>Read counts</th>
-<th>Call</th>
+<th>Category</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Fewer reads than the minimum</td>
-<td>No call</td>
+<td>SNP amplicons</td>
+<td>Reads from loci with at least one variable site in these five
+fish</td>
 </tr>
 <tr class="even">
-<td>Ratio of A to B at or above the homozygote cutoff</td>
-<td>A/A</td>
+<td>Amplicons with no SNP</td>
+<td>Reads from loci that amplified but did not vary in these fish</td>
 </tr>
 <tr class="odd">
-<td>Ratio at or below 1 ÷ homozygote cutoff</td>
-<td>B/B</td>
+<td>Primer dimers</td>
+<td>Reads shorter than 50 bases that start with a primer: two primers
+joined with no fish DNA between them</td>
 </tr>
 <tr class="even">
-<td>Ratio between 1 ÷ heterozygote cutoff and the heterozygote
-cutoff</td>
-<td>A/B</td>
+<td>Off-target or unreadable</td>
+<td>Reads that were sorted to a locus but do not form a usable amplicon</td>
 </tr>
 <tr class="odd">
-<td>Anything else</td>
-<td>No call</td>
+<td>No primer match</td>
+<td>Reads that could not be assigned to any locus</td>
 </tr>
 </tbody>
 </table>
-<p>The headline numbers are then simple counts. Missing data is the
-share of uncalled genotypes. Replicate discordance is the share of
-pairs, both called, whose replicates disagree. Error compares the called
-genotypes with the true ones.</p>
-<h3 id="7-filtering-two-populations-tab-replicate-1-only">7. Filtering
-(Two populations tab, replicate 1 only)</h3>
+<h3 id="step-2-one-locus-read-by-read">Step 2: One locus, read by
+read</h3>
+<p>Up to 16 randomly chosen reads per fish, sorted by the base at the
+SNP. The forward primer is teal, the reverse primer violet, and the
+panel SNP blue or orange. Bases that match the consensus can be shown as
+dots, and bases that differ from it are red and underlined (mostly
+sequencing errors). Extra variable sites that the panel does not target
+are marked in gray on the amplicon map.</p>
+<h3 id="step-3-probes-turn-reads-into-counts">Step 3: Probes turn reads
+into counts</h3>
+<p>The two 13-base probes for the panel SNP (a dot matches any base),
+the number of reads that carry each allele in each fish, the ratio, the
+genotype call, and a plot of allele 1 against allele 2 reads with the
+calling cutoffs.</p>
+<h3 id="step-4-genotypes-across-the-panel">Step 4: Genotypes across the
+panel</h3>
+<p>One column per locus and one row per fish, colored by genotype, with
+each fish's observed heterozygosity. Clicking a cell opens that locus in
+Step 2.</p>
+<h2 id="how-the-data-were-processed">How the data were processed</h2>
 <ol type="1">
-<li>Loci are removed if their call rate is below the loci threshold, or
-if the minor allele frequency of their called genotypes is below the MAF
-threshold.</li>
-<li>Fish are removed if their call rate on the remaining loci is below
-the fish threshold.</li>
+<li><strong>Sort reads to loci.</strong> Reads were grouped by their
+first 20 bases, allowing 2 mismatches. Groups with at least 100 reads
+were treated as loci (180 groups).</li>
+<li><strong>Trim and merge.</strong> Illumina adapter sequence was
+trimmed. Read 1 and read 2 were merged into one sequence where they
+overlap, giving the full amplicon.</li>
+<li><strong>Find primer dimers.</strong> Reads shorter than 50 bases
+that start with a primer were counted as primer dimers.</li>
+<li><strong>Find SNPs.</strong> For each locus, a sequence was counted
+as a real haplotype if it made up at least 20% of a fish's full-length
+reads. Positions where haplotypes differ are variable sites.</li>
+<li><strong>Match to the panel.</strong> Read groups were matched to the
+official panel loci by their forward primer. Of the panel's 163 loci,
+147 amplified well; 130 of these vary in the five fish and are shown on
+the page, and 17 do not vary.</li>
+<li><strong>Call genotypes.</strong> Following the GTseq genotyper, read
+1 must start with the locus's forward primer, then reads containing
+probe 1 or probe 2 are counted. Calls use the GTseq rules: at least 10
+reads, a ratio of 10 or more for a homozygote, and 0.2 to 5 for a
+heterozygote.</li>
 </ol>
-<h3 id="8-statistics">8. Statistics</h3>
+<h2 id="limitations">Limitations</h2>
 <ul>
-<li><strong>FST:</strong> Hudson's estimator, summed over loci before
-dividing ("ratio of averages"), using only called genotypes. Each locus
-uses its own sample sizes, so missing data adds noise but no direct
-bias.</li>
-<li><strong>He, Ho and FIS:</strong> He is 2<em>pq</em> averaged over
-loci, Ho is the share of called genotypes that are heterozygous, and FIS
-= 1 − Ho/He. Each is computed within populations and then averaged over
-the two.</li>
-<li><strong>PCA:</strong> genotypes are standardized by locus, with
-missing genotypes filled with the locus average; that is why poorly
-genotyped fish drift to the middle. The called PCA's axes are flipped if
-needed to line up with the true PCA, because PCA axis signs are
-arbitrary.</li>
-<li><strong>False SNPs:</strong> loci that are truly monomorphic but
-have a called minor allele frequency above 0 after filtering.</li>
+<li>The primer is shown as the first 20 bases of each read; the real
+primer may be a few bases longer.</li>
+<li>At 5 loci the official probe does not match the amplicon reads, so a
+probe inferred from the reads is shown instead.</li>
+<li>Fish 23OB-23 has read 1 only, so its reads stop at 76 bases and some
+SNPs further along the amplicon cannot be called for it.</li>
+<li>Only five fish are included, so SNPs that do not vary in these fish
+appear as monomorphic.</li>
 </ul>
-<h2 id="sliders-and-simplifications">Sliders and simplifications</h2>
-<h3 id="9-what-happens-when-you-move-a-slider">9. What happens when you
-move a slider</h3>
+<h2 id="files">Files</h2>
 <ul>
-<li><strong>Calling and filtering sliders</strong> only recompute steps
-6 to 8 on the same read counts, so you compare settings on identical
-data.</li>
-<li><strong>Sequencing and population settings</strong> re-simulate from
-the same random seed. The fish and their genotypes stay the same, and
-only what the slider controls changes.</li>
-<li><strong>"Simulate a new data set"</strong> changes the seed, giving
-new fish.</li>
+<li><code>index.html</code>: the explorer. It is a single self-contained
+page with the reads built in, so it needs no server or other files; it
+loads its fonts from Google Fonts.</li>
 </ul>
-<h3 id="what-the-model-leaves-out">What the model leaves out</h3>
-<ul>
-<li><strong>Sequences:</strong> reads exist only as counts of A and B,
-with no bases, quality scores, primers or probes.</li>
-<li><strong>Error types:</strong> errors to a third base, PCR errors,
-index hopping and contamination are all folded into one wrong-allele
-rate.</li>
-<li><strong>Population structure:</strong> loci are unlinked and each
-population is in Hardy–Weinberg equilibrium.</li>
-<li><strong>Problem loci and samples:</strong> there are no primer
-dimers, null alleles, duplicated loci or contaminated fish.</li>
-</ul>
+</body>
+</html>
+
